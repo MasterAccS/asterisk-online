@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
-import AsterSkApp from './components/AsterSkApp';
+import App from './App';
 
 // Performance monitoring (optional)
 if (process.env.NODE_ENV === 'production') {
@@ -13,7 +13,7 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 
 root.render(
   <React.StrictMode>
-    <AsterSkApp />
+    <App />
   </React.StrictMode>
 );
 
