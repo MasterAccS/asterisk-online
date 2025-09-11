@@ -10,23 +10,13 @@ function seedPosts() {
   return [
     {
       id: makeId(),
-      author: 'Asterisk',
-      handle: '@aster',
-      avatarUrl: '',
       text: 'Welcome to Asterisk Online. Say more with less. #hello',
       createdAt: now - 1000 * 60 * 3,
-      reactions: { stars: 3, reposts: 0 },
-      youStarred: false,
     },
     {
       id: makeId(),
-      author: 'Skye',
-      handle: '@skye',
-      avatarUrl: '',
       text: 'Focus-first writing feels different. Press N anywhere to compose. *',
       createdAt: now - 1000 * 60 * 30,
-      reactions: { stars: 1, reposts: 0 },
-      youStarred: false,
     },
   ];
 }
@@ -49,28 +39,16 @@ export default function App() {
   const handlePost = ({ text }) => {
     const post = {
       id: makeId(),
-      author: 'You',
-      handle: '@you',
-      avatarUrl: '',
       text,
       createdAt: Date.now(),
-      reactions: { stars: 0, reposts: 0 },
-      youStarred: false,
     };
     setPosts((prev) => [post, ...prev]);
   };
 
-  const handleStar = (id, starred) => {
-    setPosts((prev) => prev.map(p => p.id === id ? {
-      ...p,
-      youStarred: starred,
-      reactions: { ...p.reactions, stars: Math.max(0, (p.reactions?.stars || 0) + (starred ? 1 : -1)) }
-    } : p));
-  };
 
   return (
     <div>
-      <FeedView posts={posts} onStar={handleStar} />
+      <FeedView posts={posts} />
       <ComposeButton onClick={() => setComposerOpen(true)} />
       <FocusComposer isOpen={isComposerOpen} onClose={() => setComposerOpen(false)} onPost={handlePost} />
     </div>
