@@ -1,0 +1,49 @@
+{
+  "name": "asterisk-online",
+  "version": "1.0.0",
+  "description": "Online version of Asterisk game, based on aster-sk",
+  "main": "src/index.js",
+  "homepage": ".",
+  "scripts": {
+    "start": "craco start",
+    "build": "craco build",
+    "test": "craco test",
+    "eject": "react-scripts eject"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "keywords": [
+    "journal",
+    "journaling",
+    "notes",
+    "writing",
+    "minimalist",
+    "react",
+    "theme",
+    "accessibility"
+  ],
+  "author": "aster-sk",
+  "license": "MIT",
+  "devDependencies": {
+    "@craco/craco": "^7.1.0"
+  },
+  "engines": {
+    "node": ">=16.14.0",
+    "npm": ">=8.0.0"
+  }
+}
