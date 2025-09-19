@@ -20,7 +20,15 @@ function renderText(text) {
   while ((m = regex.exec(text)) !== null) {
     if (m.index > lastIndex) parts.push(text.slice(lastIndex, m.index));
     parts.push(
-      <span key={m.index} style={{ color: '#4ecdc4' }}>{m[1]}</span>
+      <span 
+        key={m.index} 
+        style={{ color: '#00d4d4' }}
+        role="button"
+        tabIndex="0"
+        title={`Filter by ${m[1]}`}
+      >
+        {m[1]}
+      </span>
     );
     lastIndex = regex.lastIndex;
   }
@@ -30,14 +38,30 @@ function renderText(text) {
 
 export default function PostCard({ post }) {
   const timeAgo = useMemo(() => formatTimeAgo(post.createdAt), [post.createdAt]);
+  const fullTimestamp = useMemo(() => new Date(post.createdAt).toLocaleString(), [post.createdAt]);
 
   return (
     <article
-      className="p-4 mb-4 rounded-lg"
+      className="post-card p-4 mb-4 rounded-lg"
       style={{ border: '1px solid #1f2937', background: '#0A0A0A' }}
+      role="article"
+      aria-labelledby={`post-${post.id}`}
     >
-      <div className="text-sm" style={{ opacity: 0.6, marginBottom: 8 }}>{timeAgo}</div>
-      <div className="text-base" style={{ whiteSpace: 'pre-wrap' }}>
+      <header>
+        <time 
+          className="text-sm" 
+          style={{ opacity: 0.6, marginBottom: 8, display: 'block' }}
+          dateTime={new Date(post.createdAt).toISOString()}
+          title={fullTimestamp}
+        >
+          {timeAgo}
+        </time>
+      </header>
+      <div 
+        id={`post-${post.id}`}
+        className="text-base" 
+        style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}
+      >
         {renderText(post.text)}
       </div>
     </article>

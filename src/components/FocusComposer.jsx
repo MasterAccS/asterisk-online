@@ -6,16 +6,35 @@ const MAX_CHARS = 560;
 export default function FocusComposer({ isOpen, onClose, onPost }) {
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const inputRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Load & save draft
   useEffect(() => {
     if (isOpen) {
       const saved = localStorage.getItem('ao_draft');
       if (saved) setText(saved);
-      setTimeout(() => inputRef.current?.focus(), 0);
+      setTimeout(() => {
+        if (isMobile) {
+          textareaRef.current?.focus();
+        } else {
+          inputRef.current?.focus();
+        }
+      }, 100);
     }
-  }, [isOpen]);
+  }, [isOpen, isMobile]);
 
   useEffect(() => {
     localStorage.setItem('ao_draft', text);
@@ -39,6 +58,21 @@ export default function FocusComposer({ isOpen, onClose, onPost }) {
   }, [isOpen, text]);
 
   const overLimit = text.length > MAX_CHARS;
+  const charCountClass = text.length < MAX_CHARS * 0.8 ? 'good' : 
+                        text.length < MAX_CHARS * 0.9 ? 'warning' : 'danger';
+  
+  // Announce composer state changes to screen readers
+  useEffect(() => {
+    if (isOpen) {
+      const announcement = document.createElement('div');
+      announcement.setAttribute('aria-live', 'polite');
+      announcement.setAttribute('aria-atomic', 'true');
+      announcement.className = 'sr-only';
+      announcement.textContent = 'Composer opened. Start typing your post.';
+      document.body.appendChild(announcement);
+      setTimeout(() => document.body.removeChild(announcement), 1000);
+    }
+  }, [isOpen]);
 
   const renderedText = useMemo(() => {
     if (!text) return null;
@@ -69,14 +103,39 @@ export default function FocusComposer({ isOpen, onClose, onPost }) {
     e.target.value = '';
   };
 
-  const handlePost = () => {
+  const handlePost = async () => {
     const trimmed = text.trim();
-    if (!trimmed || overLimit) return;
-    onPost?.({ text: trimmed, attachments });
-    setText('');
-    setAttachments([]);
-    localStorage.removeItem('ao_draft');
-    onClose?.();
+    if (!trimmed || overLimit || isSubmitting) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      await onPost?.({ text: trimmed, attachments });
+      
+      // Success feedback
+      const successAnnouncement = document.createElement('div');
+      successAnnouncement.setAttribute('aria-live', 'polite');
+      successAnnouncement.className = 'sr-only';
+      successAnnouncement.textContent = 'Post published successfully!';
+      document.body.appendChild(successAnnouncement);
+      setTimeout(() => document.body.removeChild(successAnnouncement), 1000);
+      
+      setText('');
+      setAttachments([]);
+      localStorage.removeItem('ao_draft');
+      onClose?.();
+    } catch (error) {
+      console.error('Failed to post:', error);
+      // Error announcement
+      const errorAnnouncement = document.createElement('div');
+      errorAnnouncement.setAttribute('aria-live', 'assertive');
+      errorAnnouncement.className = 'sr-only';
+      errorAnnouncement.textContent = 'Failed to publish post. Please try again.';
+      document.body.appendChild(errorAnnouncement);
+      setTimeout(() => document.body.removeChild(errorAnnouncement), 1000);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -115,68 +174,102 @@ export default function FocusComposer({ isOpen, onClose, onPost }) {
               Say more with less
             </div>
             <div className="text-sm" style={{ opacity: 0.7 }}>
-              <span style={{ color: overLimit ? '#ff6b6b' : '#aaa' }}>{text.length}</span>
+              <span className={`char-count ${charCountClass}`}>{text.length}</span>
               <span style={{ color: '#666' }}>/</span>
               <span style={{ color: '#666' }}>{MAX_CHARS}</span>
+              {overLimit && (
+                <span style={{ color: '#ef4444', marginLeft: 8, fontSize: '0.75rem' }}>
+                  ({text.length - MAX_CHARS} over limit)
+                </span>
+              )}
             </div>
           </div>
 
-          {/* Display text with asterisk cursor */}
-          <div
-            className="relative text-center"
-            style={{
-              minHeight: 56,
-              fontFamily: FONT_FAMILY,
-              fontSize: 20,
-              fontWeight: 300,
-              color: '#fff'
-            }}
-            onMouseDown={(e) => {
-              if (e.target === e.currentTarget) inputRef.current?.focus();
-            }}
-          >
-            <div className="inline-flex items-baseline" style={{ maxWidth: '100%' }}>
-              {text && (
-                <span
-                  className="transition-all ease-out"
-                  style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}
-                >
-                  {renderedText}
-                </span>
-              )}
-              <span
+          {/* Composer input section */}
+          <div className="relative">
+            {/* Display text with asterisk cursor (desktop only) */}
+            {!isMobile && (
+              <div
+                className="relative text-center"
                 style={{
-                  color: '#ffffff',
-                  animation: 'pulse 1.5s infinite',
-                  marginLeft: text ? 2 : 0,
+                  minHeight: 56,
                   fontFamily: FONT_FAMILY,
                   fontSize: 20,
-                  fontWeight: 300
+                  fontWeight: 300,
+                  color: '#fff'
+                }}
+                onMouseDown={(e) => {
+                  if (e.target === e.currentTarget) inputRef.current?.focus();
                 }}
               >
-                *
-              </span>
-            </div>
+                <div className="inline-flex items-baseline" style={{ maxWidth: '100%' }}>
+                  {text && (
+                    <span
+                      className="transition-all ease-out"
+                      style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}
+                    >
+                      {renderedText}
+                    </span>
+                  )}
+                  <span
+                    className="asterisk-cursor"
+                    style={{
+                      color: '#ffffff',
+                      marginLeft: text ? 2 : 0,
+                      fontFamily: FONT_FAMILY,
+                      fontSize: 20,
+                      fontWeight: 300
+                    }}
+                    aria-hidden="true"
+                  >
+                    *
+                  </span>
+                </div>
+              </div>
+            )}
 
-            {/* Invisible input */}
-            <input
-              ref={inputRef}
-              type="text"
-              value={text}
-              onChange={(e) => setText(e.target.value.slice(0, MAX_CHARS + 100))}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-default"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                caretColor: 'transparent',
-                color: 'transparent',
-                fontSize: 1,
-                fontFamily: 'monospace'
-              }}
-              autoComplete="off"
-              spellCheck="false"
-            />
+            {/* Input field - visible textarea on mobile, invisible input on desktop */}
+            {isMobile ? (
+              <textarea
+                ref={textareaRef}
+                value={text}
+                onChange={(e) => setText(e.target.value.slice(0, MAX_CHARS + 100))}
+                className="w-full resize-none bg-transparent border-none outline-none"
+                style={{
+                  fontFamily: FONT_FAMILY,
+                  fontSize: 20,
+                  fontWeight: 300,
+                  color: '#fff',
+                  minHeight: 56,
+                  lineHeight: 1.4
+                }}
+                placeholder="Say more with less..."
+                autoComplete="off"
+                spellCheck="false"
+                rows={3}
+                aria-label="Compose your post"
+              />
+            ) : (
+              <input
+                ref={inputRef}
+                type="text"
+                value={text}
+                onChange={(e) => setText(e.target.value.slice(0, MAX_CHARS + 100))}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-default"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  caretColor: 'transparent',
+                  color: 'transparent',
+                  fontSize: 1,
+                  fontFamily: 'monospace'
+                }}
+                autoComplete="off"
+                spellCheck="false"
+                aria-label="Compose your post"
+              />
+            )}
           </div>
 
           {/* Attachments */}
@@ -226,17 +319,37 @@ export default function FocusComposer({ isOpen, onClose, onPost }) {
               <button
                 type="button"
                 onClick={handlePost}
-                disabled={!text.trim() || overLimit}
+                disabled={!text.trim() || overLimit || isSubmitting}
                 className="px-4 py-2 rounded-full"
                 style={{
-                  background: !text.trim() || overLimit ? '#222' : '#4ecdc4',
+                  background: !text.trim() || overLimit || isSubmitting ? '#222' : '#00d4d4',
                   color: '#000',
                   border: 'none',
-                  opacity: !text.trim() || overLimit ? 0.6 : 1,
-                  cursor: !text.trim() || overLimit ? 'not-allowed' : 'pointer'
+                  opacity: !text.trim() || overLimit || isSubmitting ? 0.6 : 1,
+                  cursor: !text.trim() || overLimit || isSubmitting ? 'not-allowed' : 'pointer',
+                  minHeight: '44px',
+                  minWidth: '80px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
+                aria-label={isSubmitting ? 'Publishing post...' : 'Publish post'}
               >
-                Post
+                {isSubmitting ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span className="loading-spinner" style={{ 
+                      width: 16, 
+                      height: 16, 
+                      border: '2px solid #666', 
+                      borderTop: '2px solid #000', 
+                      borderRadius: '50%', 
+                      animation: 'spin 1s linear infinite' 
+                    }}></span>
+                    Publishing...
+                  </span>
+                ) : (
+                  'Post'
+                )}
               </button>
             </div>
           </div>
